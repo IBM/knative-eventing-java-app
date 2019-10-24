@@ -64,7 +64,8 @@ public class EventController {
         logger.debug("Receved request headers: " + headers);
         logger.debug("Received request body: " + body);
         try {
-            if (MediaType.APPLICATION_JSON_VALUE.equalsIgnoreCase(headers.get("Content-Type").toString())) {
+            Object contentTypeVal = headers.get("Content-Type");
+            if (contentTypeVal == null || MediaType.APPLICATION_JSON_VALUE.equalsIgnoreCase(contentTypeVal.toString())) {
                 @SuppressWarnings("rawtypes")
                 CloudEvent<AttributesImpl, Map> cloudEvent = Unmarshallers.binary(Map.class)
                         .withHeaders(() -> headers)
