@@ -18,7 +18,6 @@
 
 # Create and deploy a Java Spring Knative Eventing microservice
 
-
 In this sample application, you will create a basic Java web application using [Knative Eventing](https://knative.dev/docs/eventing/), [Spring](https://spring.io/), and [Cloudant](https://www.ibm.com/cloud/cloudant). This starter kit provides a starting point for creating Java microservice applications that use Knative Eventing and Spring. The application includes a sample event source with [Cron job source](https://knative.dev/docs/eventing/samples/cronjob-source/) and displays events from this source to a web page. This application follows standard best practices, including a health check.
 
 Capabilities are provided through dependencies in the `pom.xml` file. The ports are set to the defaults of `8080` for http and `8443` for https and are exposed to the CLI in the `cli-config.yml` file. The ports are set in the `pom.xml` file and exposed to the CLI in the `cli-config.yml` file.
