@@ -16,7 +16,7 @@
 </p>
 
 
-# Create and deploy a Java Spring Knative Eventing microservice
+# Create and deploy a Knative Eventing microservice in Java Spring
 
 In this sample application, you will create a basic Java web application using [Knative Eventing](https://knative.dev/docs/eventing/), [Spring](https://spring.io/), and [Cloudant](https://www.ibm.com/cloud/cloudant). This starter kit provides a starting point for creating Java microservice applications that use Knative Eventing and Spring. The application includes a sample event source with [Cron job source](https://knative.dev/docs/eventing/samples/cronjob-source/) and displays events from this source to a web page. This application follows standard best practices, including a health check.
 
