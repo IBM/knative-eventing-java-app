@@ -44,7 +44,7 @@ public class EventController {
         this.eventService = this.eventServiceFactory.getDefault();
     }
 
-    @GetMapping(value = "/v1", produces = {MediaType.APPLICATION_JSON_VALUE})
+    @GetMapping(value = "/", produces = {MediaType.APPLICATION_JSON_VALUE})
     public ResponseEntity<String> landing() {
         String response = this.eventService.getStatus();
         return ResponseEntity.ok(response);
