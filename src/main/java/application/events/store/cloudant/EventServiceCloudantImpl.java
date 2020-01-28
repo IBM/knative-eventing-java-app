@@ -58,7 +58,7 @@ public class EventServiceCloudantImpl implements EventService {
     public String getEnvironment() throws Exception {
         String response;
         if (this.cloudantClient != null) {
-            response = "Available databases: " + this.cloudantClient.getAllDbs().toString();
+            response = "Available databases: " + this.cloudantClient.getAllDbs().toString().replaceAll("[^a-z0-9_$()+_/]", ""); // Make sure we dont get garbage names see: https://cloud.ibm.com/docs/services/Cloudant?topic=cloudant-getting-started-with-cloudant
         } else {
             response = "No Cloudant connection available";
         }
