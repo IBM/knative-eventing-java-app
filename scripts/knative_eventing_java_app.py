@@ -9,19 +9,14 @@ options.add_argument('--headless')
 options.add_argument('--no-sandbox')
 options.add_argument('--disable-dev-shm-usage')
 driver = webdriver.Chrome(options=options)
-driver.get(os.environ["APP_URL"]); # Open a browser to the app's landing page
+driver.get(os.environ["APP_URL"] + "/v1/events"); # Open a browser to the app's landing page
 time.sleep(3)
 # Verify the expected content is present
-title_text = driver.find_element_by_css_selector('h1.title').text
-print("The title text is: {}".format(title_text))
-if title_text == "Congratulations!":
+html = driver.page_source
+print("The page content is: {}".format(html))
+if title_text == "No events found in the database!":
     print("Experience Test Successful")
 else:
     sys.exit("Experience Test Failed")
 
-subtitle_text = driver.find_element_by_css_selector('h2.subtitle').text
-print("The subtitle text is: {}".format(subtitle_text))
-if subtitle_text == "You are currently running a Django server.":
-    print("Experience Test Successful")
-else:
-    sys.exit("Experience Test Failed")
+# TODO start the cron event source and check for events in the events page
