@@ -24,14 +24,14 @@ Capabilities are provided through dependencies in the `pom.xml` file. The ports 
 
 ## Steps
 
-You can [deploy this application to IBM Cloud](https://cloud.ibm.com/developer/appservice/create-app?starterKit=1298bc4e-4764-390b-a9eb-e4dcf3cc03ad) in a Knative-enabled cluster or [build it locally](#building-locally) by cloning this repo first. After your app is live, you can access the `/health` endpoint to test your cloud native application.
+You can [deploy this application to IBM Cloud](https://cloud.ibm.com/developer/appservice/starter-kits/0dc2bf4f-b097-3f54-bf29-7da4fd80e544/knative-eventing-with-cloud-events) in a Knative-enabled cluster or [build it locally](#building-locally) by cloning this repo first. After your app is live, you can access the `/health` endpoint to test your cloud native application.
 
 *Important:* This application requires a Cloudant service to successfully pass all unit tests. See the [IBM Cloud Catalog](https://cloud.ibm.com/catalog/services/cloudant) to provision a Cloudant service with the free Lite plan if you do not already have one. Also, the application and the Cron job event source must be deployed to a Knative-enabled Kubernetes cluster to support complete Knative Eventing functionality.
 
 ### Deploying to IBM Cloud
 
 <p align="center">
-    <a href="https://cloud.ibm.com/developer/appservice/create-app?starterKit=1298bc4e-4764-390b-a9eb-e4dcf3cc03ad">
+    <a href="https://cloud.ibm.com/developer/appservice/starter-kits/0dc2bf4f-b097-3f54-bf29-7da4fd80e544/knative-eventing-with-cloud-events">
     <img src="https://cloud.ibm.com/devops/setup/deploy/button_x2.png" alt="Deploy to IBM Cloud">
     </a>
 </p>
