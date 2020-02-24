@@ -14,7 +14,7 @@ time.sleep(3)
 # Verify the expected content is present
 html = driver.page_source
 print("The page content is: {}".format(html))
-if html == "No events found in the database!":
+if "No events found in the database!" in html:
     print("Experience Test Successful")
 else:
     sys.exit("Experience Test Failed")
