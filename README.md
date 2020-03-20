@@ -77,6 +77,8 @@ Then run the following commands:
 
 To run an application in Docker, use the Docker file named `Dockerfile`. If you do not want to install Maven locally, you can use `Dockerfile-tools` to build a container with Maven installed.
 
+You can also verify the state of your locally running application using the Selenium UI test script included in the `scripts` directory.
+
 #### IBM Cloud Developer Tools
 
 Install [IBM Cloud Developer Tools](https://cloud.ibm.com/docs/cli?topic=cloud-cli-getting-started) on your machine by running the following command:
