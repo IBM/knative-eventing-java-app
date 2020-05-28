@@ -72,8 +72,9 @@ To build and run an application, you must have a Cloudant database service provi
 * If the IBM Cloud Developer tools are installed, run the `ibmcloud dev get-credentials` command. This command downloads the service credentials into the `src/main/resources/localdev-config.json` file, which is read by the application at runtime. This file is ignored by Git by default and should not be put into source control.
 
 Then run the following commands:
+
 1. `mvn install`
-1. `java -jar ./target/knative-eventing-1.0-SNAPSHOT.jar`
+2. `java -jar ./target/knative-eventing-1.0-SNAPSHOT.jar`
 
 To run an application in Docker, use the Docker file named `Dockerfile`. If you do not want to install Maven locally, you can use `Dockerfile-tools` to build a container with Maven installed.
 
