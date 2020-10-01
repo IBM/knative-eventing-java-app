@@ -1,0 +1,12 @@
+apiVersion: sources.knative.dev/v1alpha2
+kind: PingSource
+metadata:
+  name: cron-pingsource
+spec:
+  schedule: "*/2 * * * *"
+  jsonData: '{"message": "Hello world! This is CRON!"}'
+  sink:
+    ref:
+      apiVersion: serving.knative.dev/v1alpha1
+      kind: Service
+      name: knative-eventing-java-app-monitored-knative
