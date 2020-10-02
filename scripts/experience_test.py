@@ -21,4 +21,12 @@ if "Hello world!" in html:
     print("Experience Test Successful")
 else:
     sys.exit("Experience Test Failed")
+
+# Cleanup
+print("Deleting pingsource and clearing the Cloudant DB...")
 subprocess.call("kubectl delete pingsource cron-pingsource", shell=True)
+driver.get(os.environ["APP_URL"] + "/v1/events?deleteAll=true");  # Clears the Cloudant DB
+time.sleep(10)
+# Verify the event(s) have been cleared
+html = driver.page_source
+print("The page content is: {}".format(html))
