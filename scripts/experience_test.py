@@ -20,7 +20,7 @@ if "No events found" in html:
     print("Starting ping source to send events to the Cloudant DB...")
     time.sleep(3)  # Adding extra sleeps just so logging of print statements are in order
     subprocess.call("kubectl apply -f ping-source.yaml", shell=True)
-    time.sleep(60)
+    time.sleep(120)
     driver.get(os.environ["APP_URL"] + "/v1/events");  # Open a browser to the app's landing page
     time.sleep(3)
     # Verify the expected content is present
