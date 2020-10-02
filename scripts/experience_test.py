@@ -11,7 +11,7 @@ options.add_argument('--disable-dev-shm-usage')
 driver = webdriver.Chrome(options=options)
 
 subprocess.call("kubectl apply -f ping-source.yaml", shell=True)
-time.sleep(10)
+time.sleep(60)
 driver.get(os.environ["APP_URL"] + "/v1/events");  # Open a browser to the app's landing page
 time.sleep(3)
 # Verify the expected content is present
@@ -21,3 +21,4 @@ if "Hello world!" in html:
     print("Experience Test Successful")
 else:
     sys.exit("Experience Test Failed")
+subprocess.call("kubectl delete pingsource cron-pingsource", shell=True)

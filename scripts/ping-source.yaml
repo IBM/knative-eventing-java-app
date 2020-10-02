@@ -3,7 +3,7 @@ kind: PingSource
 metadata:
   name: cron-pingsource
 spec:
-  schedule: "*/2 * * * *"
+  schedule: "*/1 * * * *"
   jsonData: '{"message": "Hello world! This is CRON!"}'
   sink:
     ref:
