@@ -14,6 +14,7 @@ LABEL maintainer="IBM Java Engineering at IBM Cloud"
 COPY --from=builder /app/target/knative-eventing-1.0-SNAPSHOT.jar /app.jar
 
 ENV JAVA_OPTS=""
+ENV PORT=8080
 
 EXPOSE 8080
 
