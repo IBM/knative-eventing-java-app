@@ -1,27 +1,27 @@
 package application;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 public class HealthEndpointTest {
 
-    @Mock private CustomHealthEndpoint objectUnderTest;
+    @Mock
+    private CustomHealthEndpoint objectUnderTest;
 
-    @Before
+    @BeforeEach
     public void setup() {
-        MockitoAnnotations.initMocks(this);
+        MockitoAnnotations.openMocks(this);
         Mockito.when(this.objectUnderTest.health()).thenReturn(CustomHealthEndpoint.STATUS_UP);
     }
 
     @Test
-    public void testEndpoint() throws Exception {
+    public void testEndpoint() {
         String response = this.objectUnderTest.health();
-        assertTrue("Invalid response from server : " + response, response.equals(CustomHealthEndpoint.STATUS_UP));
+        assertTrue(response.equals(CustomHealthEndpoint.STATUS_UP), "Invalid response from server : " + response);
     }
-
 }

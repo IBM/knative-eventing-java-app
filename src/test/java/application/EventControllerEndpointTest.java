@@ -1,7 +1,8 @@
 package application;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
 import java.time.ZonedDateTime;
@@ -12,9 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -44,28 +44,36 @@ import io.cloudevents.v02.http.Marshallers;
 
 public class EventControllerEndpointTest {
 
-    @Mock private CloudEventStoreFactory cesFactory;
-    @Mock private CloudantClient cloudantClient;
-    @Mock private Database cloudantDatabase;
-    
-    @Mock private EventService eventService;
-    @Mock private EventServiceFactory eventServiceFactory;// = new EventServiceFactory(this.eventService);
+    @Mock
+    private CloudEventStoreFactory cesFactory;
+
+    @Mock
+    private CloudantClient cloudantClient;
+
+    @Mock
+    private Database cloudantDatabase;
+
+    @Mock
+    private EventService eventService;
+
+    @Mock
+    private EventServiceFactory eventServiceFactory;// = new EventServiceFactory(this.eventService);
 
     private EventController objectUnderTest;
 
-    @Before
+    @BeforeEach
     public void setup() {
-        MockitoAnnotations.initMocks(this);
+        MockitoAnnotations.openMocks(this);
         Mockito.when(this.eventServiceFactory.getDefault()).thenReturn(this.eventService);
         this.objectUnderTest = new EventController(this.eventServiceFactory);
     }
 
     @Test
-    public void testApiEndpoint() throws Exception {
+    public void testApiEndpoint() {
         Mockito.when(this.eventService.getStatus()).thenReturn(EventService.STATUS_UP);
         ResponseEntity<String> response = this.objectUnderTest.landing();
         validateServerResponse(response, HttpStatus.OK);
-        assertTrue("Invalid response from server : " + response, response.getBody().equalsIgnoreCase(EventService.STATUS_UP));
+        assertTrue(response.getBody().equalsIgnoreCase(EventService.STATUS_UP), "Invalid response from server : " + response);
     }
 
     @Test
@@ -79,7 +87,7 @@ public class EventControllerEndpointTest {
         return this.testEmptyEvents(false);
     }
 
-    public ResponseEntity<String> testEmptyEvents(boolean deleteAll) throws Exception {
+    public ResponseEntity<String> testEmptyEvents(final boolean deleteAll) throws Exception {
         @SuppressWarnings("rawtypes")
         List<CloudEventImpl> docs = Collections.emptyList();
         this.mockGetEvents(docs);
@@ -87,12 +95,12 @@ public class EventControllerEndpointTest {
         return response;
     }
 
-    public void mockGetEvents(@SuppressWarnings("rawtypes") List<CloudEventImpl> docs) throws Exception {
+    public void mockGetEvents(@SuppressWarnings("rawtypes") final List<CloudEventImpl> docs) throws Exception {
         long expectedNumEvents = docs.size();
         AllDocsRequestBuilder builderMock = Mockito.mock(AllDocsRequestBuilder.class);
         AllDocsRequest reqMock = Mockito.mock(AllDocsRequest.class);
         AllDocsResponse dbResponseMock = Mockito.mock(AllDocsResponse.class);
-        
+
         Mockito.when(this.eventService.getNumEvents()).thenReturn(expectedNumEvents);
         Mockito.when(this.cloudantDatabase.getAllDocsRequestBuilder()).thenReturn(builderMock);
         Mockito.when(builderMock.includeDocs(true)).thenReturn(builderMock);
@@ -112,8 +120,8 @@ public class EventControllerEndpointTest {
         validateEntityPost(result);
         Mockito.verify(this.eventService).addEvent(eventCaptor.capture());
         CloudEventImpl<?> captorVal = eventCaptor.getValue();
-        assertEquals(ce, captorVal);
-        
+        assertCloudEventImplEquals(ce, captorVal);
+
         @SuppressWarnings("rawtypes")
         List<CloudEventImpl> docs = new ArrayList<>();
         docs.add(ce);
@@ -128,13 +136,13 @@ public class EventControllerEndpointTest {
         @SuppressWarnings("rawtypes")
         ArgumentCaptor<CloudEventImpl> eventCaptor = ArgumentCaptor.forClass(CloudEventImpl.class);
         Mockito.doNothing().when(this.eventService).addEvent(eventCaptor.capture());
-        
+
         CloudEventImpl<Map<?, ?>> ce = createTestCloudEvent();
         ResponseEntity<Void> result = this.objectUnderTest.event(getHeadersMap(ce), getPayload(ce));
         validateEntityPost(result);
         Mockito.verify(this.eventService).addEvent(eventCaptor.capture());
         CloudEventImpl<?> captorVal = eventCaptor.getValue();
-        assertEquals(ce, captorVal);
+        assertCloudEventImplEquals(ce, captorVal);
 
         ResponseEntity<String> response = this.testEmptyEvents();
         System.out.println("testEventsDeleteAllEndpoint response: " + response);
@@ -143,65 +151,65 @@ public class EventControllerEndpointTest {
         response = this.testEmptyEvents(true);
         System.out.println("testEventsDeleteAllEndpoint response: " + response);
         validateServerResponse(response, HttpStatus.OK);
-        assertTrue("Invalid response from server : " + response, response.getBody().contains("All cloud events deleted"));
-        
+        assertTrue(response.getBody().contains("All cloud events deleted"), "Invalid response from server : " + response);
+
         response = this.objectUnderTest.events(false);
-        assertTrue("Invalid response from server : " + response, response.getBody().startsWith("No events found in the database"));
+        assertTrue(response.getBody().startsWith("No events found in the database"), "Invalid response from server : " + response);
     }
-    
-    public static void assertEquals(CloudEventImpl<?> expectedCe, CloudEventImpl<?> actualCe) {
-        Assert.assertEquals("Unexpected data", expectedCe.getData().get(), actualCe.getData().get());
-        Assert.assertEquals("Unexpected data", expectedCe.getAttributes().getContenttype().get(), 
-                    actualCe.getAttributes().getContenttype().get());
-        
-        Assert.assertEquals("Unexpected id", expectedCe.getAttributes().getId(), 
-                actualCe.getAttributes().getId());
-        
-        Assert.assertEquals("Unexpected content type presence", expectedCe.getAttributes().getContenttype().isPresent(), 
-                actualCe.getAttributes().getContenttype().isPresent());
+
+    public static void assertCloudEventImplEquals(final CloudEventImpl<?> expectedCe, final CloudEventImpl<?> actualCe) {
+        assertEquals(expectedCe.getData().get(), actualCe.getData().get(), "Unexpected data");
+        assertEquals(expectedCe.getAttributes().getContenttype().get(),
+                actualCe.getAttributes().getContenttype().get(), "Unexpected data");
+
+        assertEquals(expectedCe.getAttributes().getId(),
+                actualCe.getAttributes().getId(), "Unexpected id");
+
+        assertEquals(expectedCe.getAttributes().getContenttype().isPresent(),
+                actualCe.getAttributes().getContenttype().isPresent(), "Unexpected content type presence");
         if (expectedCe.getAttributes().getContenttype().isPresent()) {
-            Assert.assertEquals("Unexpected content type", expectedCe.getAttributes().getContenttype().get(), 
-                    actualCe.getAttributes().getContenttype().get());
+            assertEquals(expectedCe.getAttributes().getContenttype().get(),
+                    actualCe.getAttributes().getContenttype().get(), "Unexpected content type");
         }
-        
-        Assert.assertEquals("Unexpected media type", expectedCe.getAttributes().getMediaType().isPresent(), 
-                actualCe.getAttributes().getMediaType().isPresent());
+
+        assertEquals(expectedCe.getAttributes().getMediaType().isPresent(),
+                actualCe.getAttributes().getMediaType().isPresent(), "Unexpected media type");
         if (expectedCe.getAttributes().getMediaType().isPresent()) {
-            Assert.assertEquals("Unexpected media type", expectedCe.getAttributes().getMediaType().get(), 
-                    actualCe.getAttributes().getMediaType().get());
+            assertEquals(expectedCe.getAttributes().getMediaType().get(),
+                    actualCe.getAttributes().getMediaType().get(), "Unexpected media type");
         }
-        
-        Assert.assertEquals("Unexpected schema URL presence", expectedCe.getAttributes().getSchemaurl().isPresent(), 
-                actualCe.getAttributes().getSchemaurl().isPresent());
+
+        assertEquals(expectedCe.getAttributes().getSchemaurl().isPresent(),
+                actualCe.getAttributes().getSchemaurl().isPresent(), "Unexpected schema URL presence");
         if (expectedCe.getAttributes().getSchemaurl().isPresent()) {
-            Assert.assertEquals("Unexpected schema URL", expectedCe.getAttributes().getSchemaurl().get(), 
-                    actualCe.getAttributes().getSchemaurl().get());
+            assertEquals(expectedCe.getAttributes().getSchemaurl().get(),
+                    actualCe.getAttributes().getSchemaurl().get(), "Unexpected schema URL");
         }
-        
-        Assert.assertEquals("Unexpected source", expectedCe.getAttributes().getSource(), 
-                actualCe.getAttributes().getSource());
-        
-        Assert.assertEquals("Unexpected spec version", expectedCe.getAttributes().getSpecversion(), 
-                actualCe.getAttributes().getSpecversion());
-        
-        Assert.assertEquals("Unexpected time presence", expectedCe.getAttributes().getTime().isPresent(), 
-                actualCe.getAttributes().getTime().isPresent());
+
+        assertEquals(expectedCe.getAttributes().getSource(),
+                actualCe.getAttributes().getSource(), "Unexpected source");
+
+        assertEquals(expectedCe.getAttributes().getSpecversion(),
+                actualCe.getAttributes().getSpecversion(), "Unexpected spec version");
+
+        assertEquals(expectedCe.getAttributes().getTime().isPresent(),
+                actualCe.getAttributes().getTime().isPresent(), "Unexpected time presence");
         if (expectedCe.getAttributes().getTime().isPresent()) {
             ZonedDateTime expectedTime = expectedCe.getAttributes().getTime().get();
             ZonedDateTime actualTime = actualCe.getAttributes().getTime().get();
-            Assert.assertEquals("Unexpected time", expectedTime.toEpochSecond(), actualTime.toEpochSecond());
+            assertEquals(expectedTime.toEpochSecond(), actualTime.toEpochSecond(), "Unexpected time");
         }
-        
-        Assert.assertEquals("Unexpected type", expectedCe.getAttributes().getType(), 
-                actualCe.getAttributes().getType());
+
+        assertEquals(expectedCe.getAttributes().getType(),
+                actualCe.getAttributes().getType(), "Unexpected type");
     }
-    
-    public static String getPayload(CloudEventImpl<Map<?, ?>> ce) {
+
+    public static String getPayload(final CloudEventImpl<Map<?, ?>> ce) {
         return getWire(ce).getPayload().get();
     }
 
-    public static Map<String, Object> getHeadersMap(CloudEventImpl<Map<?, ?>> ce) {
-        /* Marshal the event as a Wire instance and grab the headers and body*/
+    public static Map<String, Object> getHeadersMap(final CloudEventImpl<Map<?, ?>> ce) {
+        /* Marshal the event as a Wire instance and grab the headers and body */
         Wire<String, String, String> wire = getWire(ce);
         Map<String, String> headerVals = wire.getHeaders();
         Map<String, Object> returnVal = new HashMap<>();
@@ -209,15 +217,15 @@ public class EventControllerEndpointTest {
         return returnVal;
     }
 
-    public static <T> Wire<String, String, String> getWire(CloudEventImpl<Map<?, ?>> ce) {
-        Wire<String, String, String> wire = Marshallers.<Map<?,?>>binary()
+    public static <T> Wire<String, String, String> getWire(final CloudEventImpl<Map<?, ?>> ce) {
+        Wire<String, String, String> wire = Marshallers.<Map<?, ?>>binary()
                 .withEvent(() -> ce)
                 .marshal();
         return wire;
     }
 
-    public static HttpEntity<String> createHttpEntityFromEvent(CloudEventImpl<Map<?, ?>> ce) {
-        /* Marshal the event as a Wire instance and grab the headers and body*/
+    public static HttpEntity<String> createHttpEntityFromEvent(final CloudEventImpl<Map<?, ?>> ce) {
+        /* Marshal the event as a Wire instance and grab the headers and body */
         Wire<String, String, String> wire = getWire(ce);
         Map<String, String> headerVals = wire.getHeaders();
         HttpHeaders headers = new HttpHeaders();
@@ -243,19 +251,18 @@ public class EventControllerEndpointTest {
     public static CloudEventImpl<Map<?, ?>> createTestCloudEvent() {
         Map<String, String> testValue = new HashMap<>();
         testValue.put("test", "value");
-        
-        /*Create a tracing extension*/
+
+        /* Create a tracing extension */
         final DistributedTracingExtension dt = new DistributedTracingExtension();
         dt.setTraceparent("0");
         dt.setTracestate("congo=4");
-        /*Format it as extension format*/
+        /* Format it as extension format */
         final ExtensionFormat tracing = new DistributedTracingExtension.Format(dt);
         /* Build a CloudEvent instance */
-        CloudEventImpl<Map<?,?>> ce =
-            CloudEventBuilder.<Map<?,?>>builder()
+        CloudEventImpl<Map<?, ?>> ce = CloudEventBuilder.<Map<?, ?>>builder()
                 .withType("knative.eventing.test")
                 .withSource(URI.create("https://github.com/cloudevents/spec/pull"))
-                .withId("A234-1234-1234")                   
+                .withId("A234-1234-1234")
                 .withTime(ZonedDateTime.now())
                 .withContenttype(MediaType.APPLICATION_JSON_VALUE)
                 .withData(testValue)
@@ -264,20 +271,19 @@ public class EventControllerEndpointTest {
         return ce;
     }
 
-    public static void validateServerResponse(ResponseEntity<String> response, HttpStatus expectedCode) {
-        Assert.assertEquals("Unexpected response code", expectedCode, response.getStatusCode());
+    public static void validateServerResponse(final ResponseEntity<String> response, final HttpStatus expectedCode) {
+        assertEquals(expectedCode, response.getStatusCode(), "Unexpected response code");
         String body = response.getBody();
-        assertTrue("Empty response from server", !body.isEmpty());
-        assertFalse("Error response from server: " + response, body.contains("ERROR:"));
-        assertFalse("Warning response from server: " + response, body.contains("WARNING:"));
+        assertTrue(!body.isEmpty(), "Empty response from server");
+        assertFalse(body.contains("ERROR:"), "Error response from server: " + response);
+        assertFalse(body.contains("WARNING:"), "Warning response from server: " + response);
     }
 
-    public static void validateNonzeroEvents(ResponseEntity<String> response) {
-        assertTrue("Unexpected events response from server: " + response, response.getBody().startsWith("NUMBER OF EVENTS"));
+    public static void validateNonzeroEvents(final ResponseEntity<String> response) {
+        assertTrue(response.getBody().startsWith("NUMBER OF EVENTS"), "Unexpected events response from server: " + response);
     }
 
-    public static void validateEntityPost(ResponseEntity<Void> result) {
-        Assert.assertEquals("Unexpected response code", HttpStatus.ACCEPTED, result.getStatusCode());
+    public static void validateEntityPost(final ResponseEntity<Void> result) {
+        assertEquals(HttpStatus.ACCEPTED, result.getStatusCode(), "Unexpected response code");
     }
-
 }
