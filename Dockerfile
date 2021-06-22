@@ -4,7 +4,8 @@ LABEL maintainer="IBM Java Engineering at IBM Cloud"
 WORKDIR /app
 COPY . /app
 
-RUN apt-get update && apt-get install -y maven
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends maven=3.6.0-1~18.04.1
 RUN mvn -N io.takari:maven:wrapper -Dmaven=3.5.0
 RUN ./mvnw install
 
