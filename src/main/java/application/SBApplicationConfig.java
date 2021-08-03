@@ -2,7 +2,6 @@ package application;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.net.URL;
 import java.text.NumberFormat;
 import java.time.ZonedDateTime;
 

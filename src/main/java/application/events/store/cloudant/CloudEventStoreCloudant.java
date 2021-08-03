@@ -79,7 +79,7 @@ public class CloudEventStoreCloudant implements CloudEventStore {
     @Override
     public long getNumEvents() {
         try {
-            PostAllDocsOptions docsOptions = new PostAllDocsOptions.Builder().db(this.dbName).includeDocs(true).build();
+            PostAllDocsOptions docsOptions = new PostAllDocsOptions.Builder().db(this.dbName).build();
             AllDocsResult allDocResults = this.client.postAllDocs(docsOptions).execute().getResult();
 
             return allDocResults.getTotalRows();
@@ -93,7 +93,7 @@ public class CloudEventStoreCloudant implements CloudEventStore {
     public void addEvent(CloudEvent<?, ?> event) throws Exception {
         // Convert event into document object
         Document document = new Document();
-        document.setProperties(this.gson.fromJson(this.gson.toJson(event), Map.class));
+        document.setProperties(this.gson.fromJson(this.gson.toJson(event), Map.class)); // https://github.com/cloudant/java-cloudant/blob/master/MIGRATION.md
 
         // Post document and get response
         PostDocumentOptions postDocumentOptions = new PostDocumentOptions.Builder().db(this.dbName).document(document)

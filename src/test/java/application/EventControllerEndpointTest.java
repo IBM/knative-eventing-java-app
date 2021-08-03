@@ -12,18 +12,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.ibm.cloud.cloudant.v1.Cloudant;
-import com.ibm.cloud.cloudant.v1.model.AllDocsQuery;
 import com.ibm.cloud.cloudant.v1.model.AllDocsResult;
 import com.ibm.cloud.cloudant.v1.model.DocsResultRow;
 import com.ibm.cloud.cloudant.v1.model.Document;
-import com.ibm.cloud.cloudant.v1.model.PostAllDocsOptions;
-import com.ibm.cloud.cloudant.v1.model.PostDocumentOptions;
-import com.ibm.cloud.cloudant.v1.model.PostAllDocsOptions.Builder;
 import com.ibm.cloud.sdk.core.http.Response;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -42,7 +36,6 @@ import application.events.EventController;
 import application.events.EventService;
 import application.events.EventServiceFactory;
 import application.events.store.CloudEventStoreFactory;
-import application.events.store.cloudant.DatabaseUtils;
 import io.cloudevents.CloudEvent;
 import io.cloudevents.extensions.DistributedTracingExtension;
 import io.cloudevents.extensions.ExtensionFormat;
@@ -66,14 +59,6 @@ public class EventControllerEndpointTest {
     private EventServiceFactory eventServiceFactory;
 
     private EventController objectUnderTest;
-
-    // DocsResultRow cannot be constructed and disallows mutating fields, so we
-    // create a mock class to create mock results
-    class MockDocsResultRow extends DocsResultRow {
-        public MockDocsResultRow(Document doc) {
-            this.doc = doc;
-        }
-    }
 
     @BeforeEach
     public void setup() {
@@ -115,13 +100,13 @@ public class EventControllerEndpointTest {
 
         List<DocsResultRow> docsResultRows = new ArrayList<>();
 
-        System.out.println("DOCS" + docs);
         for (CloudEvent<?, ?> cloudEvent : docs) {
             Document document = new Document();
-            System.out.println("GSON" + customGson.toJson(cloudEvent));
             document.setProperties(customGson.fromJson(customGson.toJson(cloudEvent), Map.class));
-            docsResultRows.add(new MockDocsResultRow(document));
-            System.out.println("DOC" + document);
+
+            DocsResultRow docsResultRowMock = Mockito.mock(DocsResultRow.class);
+            Mockito.when(docsResultRowMock.getDoc()).thenReturn(document);
+            docsResultRows.add(docsResultRowMock);
         }
 
         long expectedNumEvents = docs.size();
@@ -133,7 +118,6 @@ public class EventControllerEndpointTest {
         Mockito.when(this.eventService.getNumEvents()).thenReturn(expectedNumEvents);
         Mockito.when(responseMock.getResult()).thenReturn(allDocsResultMock);
         Mockito.when(allDocsResultMock.getRows()).thenReturn(docsResultRows);
-        System.out.println("HERE" + docsResultRows);
     }
 
     @Test
