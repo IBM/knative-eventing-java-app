@@ -12,6 +12,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.ibm.cloud.cloudant.v1.Cloudant;
+import com.ibm.cloud.cloudant.v1.model.AllDocsQuery;
+import com.ibm.cloud.cloudant.v1.model.AllDocsResult;
+import com.ibm.cloud.cloudant.v1.model.DocsResultRow;
+import com.ibm.cloud.cloudant.v1.model.Document;
+import com.ibm.cloud.cloudant.v1.model.PostAllDocsOptions;
+import com.ibm.cloud.cloudant.v1.model.PostDocumentOptions;
+import com.ibm.cloud.cloudant.v1.model.PostAllDocsOptions.Builder;
+import com.ibm.cloud.sdk.core.http.Response;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,16 +38,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
-import com.cloudant.client.api.CloudantClient;
-import com.cloudant.client.api.Database;
-import com.cloudant.client.api.views.AllDocsRequest;
-import com.cloudant.client.api.views.AllDocsRequestBuilder;
-import com.cloudant.client.api.views.AllDocsResponse;
-
 import application.events.EventController;
 import application.events.EventService;
 import application.events.EventServiceFactory;
 import application.events.store.CloudEventStoreFactory;
+import application.events.store.cloudant.DatabaseUtils;
+import io.cloudevents.CloudEvent;
 import io.cloudevents.extensions.DistributedTracingExtension;
 import io.cloudevents.extensions.ExtensionFormat;
 import io.cloudevents.format.Wire;
@@ -48,18 +57,23 @@ public class EventControllerEndpointTest {
     private CloudEventStoreFactory cesFactory;
 
     @Mock
-    private CloudantClient cloudantClient;
-
-    @Mock
-    private Database cloudantDatabase;
+    private Cloudant cloudant;
 
     @Mock
     private EventService eventService;
 
     @Mock
-    private EventServiceFactory eventServiceFactory;// = new EventServiceFactory(this.eventService);
+    private EventServiceFactory eventServiceFactory;
 
     private EventController objectUnderTest;
+
+    // DocsResultRow cannot be constructed and disallows mutating fields, so we
+    // create a mock class to create mock results
+    class MockDocsResultRow extends DocsResultRow {
+        public MockDocsResultRow(Document doc) {
+            this.doc = doc;
+        }
+    }
 
     @BeforeEach
     public void setup() {
@@ -73,7 +87,8 @@ public class EventControllerEndpointTest {
         Mockito.when(this.eventService.getStatus()).thenReturn(EventService.STATUS_UP);
         ResponseEntity<String> response = this.objectUnderTest.landing();
         validateServerResponse(response, HttpStatus.OK);
-        assertTrue(response.getBody().equalsIgnoreCase(EventService.STATUS_UP), "Invalid response from server : " + response);
+        assertTrue(response.getBody().equalsIgnoreCase(EventService.STATUS_UP),
+                "Invalid response from server : " + response);
     }
 
     @Test
@@ -96,17 +111,29 @@ public class EventControllerEndpointTest {
     }
 
     public void mockGetEvents(@SuppressWarnings("rawtypes") final List<CloudEventImpl> docs) throws Exception {
+        Gson customGson = SBApplicationConfig.getCustomGsonBuilder().create();
+
+        List<DocsResultRow> docsResultRows = new ArrayList<>();
+
+        System.out.println("DOCS" + docs);
+        for (CloudEvent<?, ?> cloudEvent : docs) {
+            Document document = new Document();
+            System.out.println("GSON" + customGson.toJson(cloudEvent));
+            document.setProperties(customGson.fromJson(customGson.toJson(cloudEvent), Map.class));
+            docsResultRows.add(new MockDocsResultRow(document));
+            System.out.println("DOC" + document);
+        }
+
         long expectedNumEvents = docs.size();
-        AllDocsRequestBuilder builderMock = Mockito.mock(AllDocsRequestBuilder.class);
-        AllDocsRequest reqMock = Mockito.mock(AllDocsRequest.class);
-        AllDocsResponse dbResponseMock = Mockito.mock(AllDocsResponse.class);
+
+        @SuppressWarnings("unchecked")
+        Response<AllDocsResult> responseMock = Mockito.mock(Response.class);
+        AllDocsResult allDocsResultMock = Mockito.mock(AllDocsResult.class);
 
         Mockito.when(this.eventService.getNumEvents()).thenReturn(expectedNumEvents);
-        Mockito.when(this.cloudantDatabase.getAllDocsRequestBuilder()).thenReturn(builderMock);
-        Mockito.when(builderMock.includeDocs(true)).thenReturn(builderMock);
-        Mockito.when(builderMock.build()).thenReturn(reqMock);
-        Mockito.when(reqMock.getResponse()).thenReturn(dbResponseMock);
-        Mockito.when(dbResponseMock.getDocsAs(CloudEventImpl.class)).thenReturn(docs);
+        Mockito.when(responseMock.getResult()).thenReturn(allDocsResultMock);
+        Mockito.when(allDocsResultMock.getRows()).thenReturn(docsResultRows);
+        System.out.println("HERE" + docsResultRows);
     }
 
     @Test
@@ -151,19 +178,21 @@ public class EventControllerEndpointTest {
         response = this.testEmptyEvents(true);
         System.out.println("testEventsDeleteAllEndpoint response: " + response);
         validateServerResponse(response, HttpStatus.OK);
-        assertTrue(response.getBody().contains("All cloud events deleted"), "Invalid response from server : " + response);
+        assertTrue(response.getBody().contains("All cloud events deleted"),
+                "Invalid response from server : " + response);
 
         response = this.objectUnderTest.events(false);
-        assertTrue(response.getBody().startsWith("No events found in the database"), "Invalid response from server : " + response);
+        assertTrue(response.getBody().startsWith("No events found in the database"),
+                "Invalid response from server : " + response);
     }
 
-    public static void assertCloudEventImplEquals(final CloudEventImpl<?> expectedCe, final CloudEventImpl<?> actualCe) {
+    public static void assertCloudEventImplEquals(final CloudEventImpl<?> expectedCe,
+            final CloudEventImpl<?> actualCe) {
         assertEquals(expectedCe.getData().get(), actualCe.getData().get(), "Unexpected data");
-        assertEquals(expectedCe.getAttributes().getContenttype().get(),
-                actualCe.getAttributes().getContenttype().get(), "Unexpected data");
+        assertEquals(expectedCe.getAttributes().getContenttype().get(), actualCe.getAttributes().getContenttype().get(),
+                "Unexpected data");
 
-        assertEquals(expectedCe.getAttributes().getId(),
-                actualCe.getAttributes().getId(), "Unexpected id");
+        assertEquals(expectedCe.getAttributes().getId(), actualCe.getAttributes().getId(), "Unexpected id");
 
         assertEquals(expectedCe.getAttributes().getContenttype().isPresent(),
                 actualCe.getAttributes().getContenttype().isPresent(), "Unexpected content type presence");
@@ -175,33 +204,31 @@ public class EventControllerEndpointTest {
         assertEquals(expectedCe.getAttributes().getMediaType().isPresent(),
                 actualCe.getAttributes().getMediaType().isPresent(), "Unexpected media type");
         if (expectedCe.getAttributes().getMediaType().isPresent()) {
-            assertEquals(expectedCe.getAttributes().getMediaType().get(),
-                    actualCe.getAttributes().getMediaType().get(), "Unexpected media type");
+            assertEquals(expectedCe.getAttributes().getMediaType().get(), actualCe.getAttributes().getMediaType().get(),
+                    "Unexpected media type");
         }
 
         assertEquals(expectedCe.getAttributes().getSchemaurl().isPresent(),
                 actualCe.getAttributes().getSchemaurl().isPresent(), "Unexpected schema URL presence");
         if (expectedCe.getAttributes().getSchemaurl().isPresent()) {
-            assertEquals(expectedCe.getAttributes().getSchemaurl().get(),
-                    actualCe.getAttributes().getSchemaurl().get(), "Unexpected schema URL");
+            assertEquals(expectedCe.getAttributes().getSchemaurl().get(), actualCe.getAttributes().getSchemaurl().get(),
+                    "Unexpected schema URL");
         }
 
-        assertEquals(expectedCe.getAttributes().getSource(),
-                actualCe.getAttributes().getSource(), "Unexpected source");
+        assertEquals(expectedCe.getAttributes().getSource(), actualCe.getAttributes().getSource(), "Unexpected source");
 
-        assertEquals(expectedCe.getAttributes().getSpecversion(),
-                actualCe.getAttributes().getSpecversion(), "Unexpected spec version");
+        assertEquals(expectedCe.getAttributes().getSpecversion(), actualCe.getAttributes().getSpecversion(),
+                "Unexpected spec version");
 
-        assertEquals(expectedCe.getAttributes().getTime().isPresent(),
-                actualCe.getAttributes().getTime().isPresent(), "Unexpected time presence");
+        assertEquals(expectedCe.getAttributes().getTime().isPresent(), actualCe.getAttributes().getTime().isPresent(),
+                "Unexpected time presence");
         if (expectedCe.getAttributes().getTime().isPresent()) {
             ZonedDateTime expectedTime = expectedCe.getAttributes().getTime().get();
             ZonedDateTime actualTime = actualCe.getAttributes().getTime().get();
             assertEquals(expectedTime.toEpochSecond(), actualTime.toEpochSecond(), "Unexpected time");
         }
 
-        assertEquals(expectedCe.getAttributes().getType(),
-                actualCe.getAttributes().getType(), "Unexpected type");
+        assertEquals(expectedCe.getAttributes().getType(), actualCe.getAttributes().getType(), "Unexpected type");
     }
 
     public static String getPayload(final CloudEventImpl<Map<?, ?>> ce) {
@@ -218,9 +245,7 @@ public class EventControllerEndpointTest {
     }
 
     public static <T> Wire<String, String, String> getWire(final CloudEventImpl<Map<?, ?>> ce) {
-        Wire<String, String, String> wire = Marshallers.<Map<?, ?>>binary()
-                .withEvent(() -> ce)
-                .marshal();
+        Wire<String, String, String> wire = Marshallers.<Map<?, ?>>binary().withEvent(() -> ce).marshal();
         return wire;
     }
 
@@ -259,15 +284,10 @@ public class EventControllerEndpointTest {
         /* Format it as extension format */
         final ExtensionFormat tracing = new DistributedTracingExtension.Format(dt);
         /* Build a CloudEvent instance */
-        CloudEventImpl<Map<?, ?>> ce = CloudEventBuilder.<Map<?, ?>>builder()
-                .withType("knative.eventing.test")
-                .withSource(URI.create("https://github.com/cloudevents/spec/pull"))
-                .withId("A234-1234-1234")
-                .withTime(ZonedDateTime.now())
-                .withContenttype(MediaType.APPLICATION_JSON_VALUE)
-                .withData(testValue)
-                .withExtension(tracing)
-                .build();
+        CloudEventImpl<Map<?, ?>> ce = CloudEventBuilder.<Map<?, ?>>builder().withType("knative.eventing.test")
+                .withSource(URI.create("https://github.com/cloudevents/spec/pull")).withId("A234-1234-1234")
+                .withTime(ZonedDateTime.now()).withContenttype(MediaType.APPLICATION_JSON_VALUE).withData(testValue)
+                .withExtension(tracing).build();
         return ce;
     }
 
@@ -280,7 +300,8 @@ public class EventControllerEndpointTest {
     }
 
     public static void validateNonzeroEvents(final ResponseEntity<String> response) {
-        assertTrue(response.getBody().startsWith("NUMBER OF EVENTS"), "Unexpected events response from server: " + response);
+        assertTrue(response.getBody().startsWith("NUMBER OF EVENTS"),
+                "Unexpected events response from server: " + response);
     }
 
     public static void validateEntityPost(final ResponseEntity<Void> result) {

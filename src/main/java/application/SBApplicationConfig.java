@@ -11,9 +11,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.cloudant.client.api.ClientBuilder;
-import com.cloudant.client.api.CloudantClient;
-import com.cloudant.client.api.Database;
+import com.ibm.cloud.cloudant.v1.Cloudant;
+
+import com.ibm.cloud.sdk.core.security.BasicAuthenticator;
+import com.ibm.cloud.sdk.core.security.Authenticator;
+
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
@@ -23,8 +25,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 
-import application.events.store.cloudant.DatabaseUtils;
-
 /**
  * Spring Application configuration.
  */
@@ -32,8 +32,9 @@ import application.events.store.cloudant.DatabaseUtils;
 public class SBApplicationConfig {
 
     /*
-     * The Cloudant URL, username, and password are provided by IBM Cloud Spring Bind as defined in the mappings.json file.
-     * It will search in environment variables or localdev-config.json for the specified properties.
+     * The Cloudant URL, username, and password are provided by IBM Cloud Spring
+     * Bind as defined in the mappings.json file. It will search in environment
+     * variables or localdev-config.json for the specified properties.
      */
 
     @Value("${cloudant_url}")
@@ -46,42 +47,42 @@ public class SBApplicationConfig {
     private String cloudantPassword;
 
     /**
-     * Enables Spring to automatically create <code>ClientBuilder</code> instances configured to connect to the bound 
-     * Cloudant database.
+     * Enables Spring to automatically create <code>Cloudant</code> instances
+     * configured to connect to the bound Cloudant client.
      * 
-     * @param builder The builder to use to create the instance.
-     * 
-     * @return A fully-configured <code>ClientBuilder</code> instance.
+     * @return A fully-configured <code>Cloudant</code> instance.
      * @throws IOException
      */
     @ConditionalOnMissingBean
     @Bean
-    public ClientBuilder clientBuilder() throws IOException {
-        ClientBuilder builder;
+    public Cloudant cloudant() throws IOException {
         try {
-            GsonBuilder gsonBuilder = getCustomGsonBuilder();
+            // Create the authenticator.
+            Authenticator authenticator = new BasicAuthenticator.Builder().username(this.cloudantUsername)
+                    .password(this.cloudantPassword).build();
 
-            builder = ClientBuilder
-                    .url(new URL(this.cloudantUrl))
-                    .username(this.cloudantUsername)
-                    .password(this.cloudantPassword)
-                    .gsonBuilder(gsonBuilder);
-            return builder;
-        } catch (IOException e) {
+            // Create the client
+            Cloudant client = new Cloudant("", authenticator);
+            client.setServiceUrl(cloudantUrl);
+
+            return client;
+        } catch (Exception e) {
             e.printStackTrace();
             throw e;
         }
     }
 
     public static GsonBuilder getCustomGsonBuilder() {
-        // workaround for known issue: https://github.com/cloudant/java-cloudant/issues/357
+        // workaround for known issue:
+        // https://github.com/cloudant/java-cloudant/issues/357
         GsonBuilder gsonBuilder = new GsonBuilder().registerTypeAdapter(ZonedDateTime.class,
                 new JsonDeserializer<ZonedDateTime>() {
                     @Override
-                    public ZonedDateTime deserialize(JsonElement json, Type type, JsonDeserializationContext jsonDeserializationContext)
-                            throws JsonParseException {
+                    public ZonedDateTime deserialize(JsonElement json, Type type,
+                            JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
                         if (json.isJsonObject()) {
-                            // example as string: {"dateTime":{"date":{"year":2019,"month":10,"day":9},"time":{"hour":21,"minute":23,"second":8,"nano":288000000}},"offset":{"totalSeconds":-18000},"zone":{"totalSeconds":-18000}}
+                            // example as string:
+                            // {"dateTime":{"date":{"year":2019,"month":10,"day":9},"time":{"hour":21,"minute":23,"second":8,"nano":288000000}},"offset":{"totalSeconds":-18000},"zone":{"totalSeconds":-18000}}
                             JsonObject jsonObject = json.getAsJsonObject();
                             JsonObject dateTimeElem = jsonObject.get("dateTime").getAsJsonObject();
                             JsonObject dateElem = dateTimeElem.get("date").getAsJsonObject();
@@ -132,39 +133,7 @@ public class SBApplicationConfig {
                         return null;
                     }
                 });
+
         return gsonBuilder;
-    }
-
-    /**
-     * Enables Spring to automatically create <code>CloudantClient</code> instances configured to connect to the bound 
-     * Cloudant database.
-     * 
-     * @param builder The builder to use to create the client.
-     * 
-     * @return A fully-configured <code>CloudantClient</code> instance.
-     * 
-     * @throws IOException
-     */
-    @ConditionalOnMissingBean
-    @Bean
-    public CloudantClient client(ClientBuilder builder) throws IOException {
-        return builder.build();
-    }
-
-    /**
-     * Enables Spring to automatically create <code>Database</code> instances configured to connect to the bound 
-     * Cloudant database.
-     * 
-     * @param builder The builder to use to create the database.
-     * 
-     * @return A fully-configured <code>Database</code> instance.
-     * 
-     * @throws IOException
-     */
-    @ConditionalOnMissingBean
-    @Bean
-    public Database databaseBuilder(CloudantClient client) throws IOException {
-        Database database = client.database(DatabaseUtils.getDatabaseName(), true);
-        return database;
     }
 }

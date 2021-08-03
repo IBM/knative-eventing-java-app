@@ -3,9 +3,9 @@ package application.events.store.cloudant;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.stereotype.Component;
+import com.ibm.cloud.cloudant.v1.Cloudant;
 
-import com.cloudant.client.api.CloudantClient;
+import org.springframework.stereotype.Component;
 
 import application.events.EventService;
 import application.events.store.CloudEventStore;
@@ -21,10 +21,10 @@ public class EventServiceCloudantImpl implements EventService {
     private final Map<String, String> env = System.getenv();
 
     private final CloudEventStore eventStore;
-    private final CloudantClient cloudantClient;
+    private final Cloudant cloudant;
 
-    public EventServiceCloudantImpl(CloudEventStoreFactory cesFactory, CloudantClient cloudantClient) {
-        this.cloudantClient = cloudantClient;
+    public EventServiceCloudantImpl(CloudEventStoreFactory cesFactory, Cloudant cloudant) {
+        this.cloudant = cloudant;
         this.eventStore = cesFactory.getDefault();
     }
 
@@ -57,8 +57,11 @@ public class EventServiceCloudantImpl implements EventService {
     @Override
     public String getEnvironment() throws Exception {
         String response;
-        if (this.cloudantClient != null) {
-            response = "Available databases: " + this.cloudantClient.getAllDbs().toString().replaceAll("[^a-z0-9_$()+_/]", ""); // Make sure we dont get garbage names see: https://cloud.ibm.com/docs/services/Cloudant?topic=cloudant-getting-started-with-cloudant
+        if (this.cloudant != null) {
+            response = "Available databases: "
+                    + this.cloudant.getAllDbs().toString().replaceAll("[^a-z0-9_$()+_/]", ""); // Make sure we dont get
+                                                                                               // garbage names see:
+                                                                                               // https://cloud.ibm.com/docs/services/Cloudant?topic=cloudant-getting-started-with-cloudant
         } else {
             response = "No Cloudant connection available";
         }
