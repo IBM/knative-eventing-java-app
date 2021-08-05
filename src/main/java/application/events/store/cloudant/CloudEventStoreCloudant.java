@@ -119,8 +119,8 @@ public class CloudEventStoreCloudant implements CloudEventStore {
                 DocumentResult deleteDocumentResponse = client.deleteDocument(deleteDocumentOptions).execute()
                         .getResult();
 
-                if (deleteDocumentResponse.isOk()) {
-                    logger.info("You have deleted the document.");
+                if (!deleteDocumentResponse.isOk()) {
+                    logger.info("Could not delete a document.");
                 }
             }
         } catch (NotFoundException e) {
