@@ -13,6 +13,7 @@ import org.springframework.context.annotation.Configuration;
 import com.ibm.cloud.cloudant.v1.Cloudant;
 
 import com.ibm.cloud.sdk.core.security.BasicAuthenticator;
+import com.ibm.cloud.sdk.core.service.exception.NotFoundException;
 import com.ibm.cloud.sdk.core.security.Authenticator;
 
 import com.google.gson.GsonBuilder;
@@ -50,25 +51,19 @@ public class SBApplicationConfig {
      * configured to connect to the bound Cloudant client.
      * 
      * @return A fully-configured <code>Cloudant</code> instance.
-     * @throws IOException
      */
     @ConditionalOnMissingBean
     @Bean
-    public Cloudant cloudant() throws IOException {
-        try {
-            // Create the authenticator.
-            Authenticator authenticator = new BasicAuthenticator.Builder().username(this.cloudantUsername)
-                    .password(this.cloudantPassword).build();
+    public Cloudant cloudant() {
+        // Create the authenticator.
+        Authenticator authenticator = new BasicAuthenticator.Builder().username(this.cloudantUsername)
+                .password(this.cloudantPassword).build();
 
-            // Create the client
-            Cloudant client = new Cloudant("", authenticator);
-            client.setServiceUrl(cloudantUrl);
+        // Create the client
+        Cloudant client = new Cloudant("", authenticator);
+        client.setServiceUrl(cloudantUrl);
 
-            return client;
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw e;
-        }
+        return client;
     }
 
     public static GsonBuilder getCustomGsonBuilder() {

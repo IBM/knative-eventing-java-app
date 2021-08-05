@@ -62,11 +62,7 @@ public class CloudEventStoreCloudant implements CloudEventStore {
                 @SuppressWarnings("rawtypes")
                 CloudEventImpl evt = this.gson.fromJson(document.toString(), CloudEventImpl.class);
 
-                try {
-                    events.add(evt);
-                } catch (Exception exception) {
-                    logger.debug("Unable to find cloud event document", exception);
-                }
+                events.add(evt);
             }
 
             return events;
