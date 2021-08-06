@@ -3,23 +3,29 @@
  */
 package application.events.store.cloudant;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import com.cloudant.client.api.CloudantClient;
-import com.cloudant.client.api.Database;
-import com.cloudant.client.api.model.Document;
-import com.cloudant.client.api.model.Response;
-import com.cloudant.client.api.views.AllDocsResponse;
-import com.cloudant.client.org.lightcouch.NoDocumentException;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
+import com.ibm.cloud.cloudant.v1.Cloudant;
+import com.ibm.cloud.cloudant.v1.model.AllDocsResult;
+import com.ibm.cloud.cloudant.v1.model.DeleteDocumentOptions;
+import com.ibm.cloud.cloudant.v1.model.DocsResultRow;
+import com.ibm.cloud.cloudant.v1.model.PostAllDocsOptions;
+import com.ibm.cloud.cloudant.v1.model.PostDocumentOptions;
+import com.ibm.cloud.sdk.core.service.exception.NotFoundException;
+import com.ibm.cloud.cloudant.v1.model.Document;
+import com.ibm.cloud.cloudant.v1.model.DocumentResult;
+
+import application.SBApplicationConfig;
 import application.events.store.CloudEventStore;
 import io.cloudevents.CloudEvent;
 import io.cloudevents.v02.CloudEventImpl;
@@ -29,38 +35,38 @@ import io.cloudevents.v02.CloudEventImpl;
  */
 @Component
 public class CloudEventStoreCloudant implements CloudEventStore {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(CloudEventStoreCloudant.class);
 
-    @SuppressWarnings("unused")
-    private final CloudantClient client;
-    private final Database database;
+    private final Cloudant client;
+    private final String dbName;
+    private final Gson gson;
 
-    public CloudEventStoreCloudant(CloudantClient client, Database database) {
+    public CloudEventStoreCloudant(Cloudant client, GsonBuilder gsonBuilder) {
         this.client = client;
-        this.database = database;
+        this.gson = SBApplicationConfig.getCustomGsonBuilder().create();
+        this.dbName = DatabaseUtils.getDatabaseName();
     }
 
     @Override
     public List<CloudEvent<?, ?>> getEvents() {
-        AllDocsResponse allDocsResponse;
         try {
             List<CloudEvent<?, ?>> events = new ArrayList<>();
-            allDocsResponse = this.database.getAllDocsRequestBuilder().includeDocs(true).build().getResponse();
-            @SuppressWarnings("rawtypes")
-            List<CloudEventImpl> docIds = allDocsResponse.getDocsAs(CloudEventImpl.class);
-            for (int i = 0; i < docIds.size(); i++) {
+
+            PostAllDocsOptions docsOptions = new PostAllDocsOptions.Builder().db(this.dbName).includeDocs(true).build();
+            AllDocsResult allDocResults = this.client.postAllDocs(docsOptions).execute().getResult();
+
+            for (DocsResultRow docResult : allDocResults.getRows()) {
+                Document document = docResult.getDoc();
+
                 @SuppressWarnings("rawtypes")
-                CloudEventImpl evt = docIds.get(i);
-                try {
-                    events.add(evt);
-                } catch (NoDocumentException nde) {
-                    logger.debug("Unable to find cloud event document", nde);
-                }
+                CloudEventImpl evt = this.gson.fromJson(document.toString(), CloudEventImpl.class);
+
+                events.add(evt);
             }
 
             return events;
-        } catch (IOException e) {
+        } catch (NotFoundException e) {
             logger.warn("Unable to retrieve all documents from Cloudant", e);
             return Collections.emptyList();
         }
@@ -68,12 +74,12 @@ public class CloudEventStoreCloudant implements CloudEventStore {
 
     @Override
     public long getNumEvents() {
-        AllDocsResponse allDocsResponse;
         try {
-            allDocsResponse = this.database.getAllDocsRequestBuilder().build().getResponse();
-            List<String> docIds = allDocsResponse.getDocIds();
-            return docIds.size();
-        } catch (IOException e) {
+            PostAllDocsOptions docsOptions = new PostAllDocsOptions.Builder().db(this.dbName).build();
+            AllDocsResult allDocResults = this.client.postAllDocs(docsOptions).execute().getResult();
+
+            return allDocResults.getTotalRows();
+        } catch (Exception e) {
             logger.warn("Unable to retrieve all documents from Cloudant", e);
             return -1;
         }
@@ -81,7 +87,16 @@ public class CloudEventStoreCloudant implements CloudEventStore {
 
     @Override
     public void addEvent(CloudEvent<?, ?> event) throws Exception {
-        Response response = this.database.post(event);
+        // Convert event into document object
+        Document document = new Document();
+        document.setProperties(this.gson.fromJson(this.gson.toJson(event), Map.class)); // https://github.com/cloudant/java-cloudant/blob/master/MIGRATION.md
+
+        // Post document and get response
+        PostDocumentOptions postDocumentOptions = new PostDocumentOptions.Builder().db(this.dbName).document(document)
+                .build();
+        DocumentResult response = this.client.postDocument(postDocumentOptions).execute().getResult();
+
+        // Check for errors
         String error = response.getError();
         if (error != null) {
             logger.error("Error adding event to Cloudant: " + error);
@@ -91,15 +106,24 @@ public class CloudEventStoreCloudant implements CloudEventStore {
 
     @Override
     public void removeAllEvents() throws Exception {
-        AllDocsResponse allDocsResponse;
         try {
-            allDocsResponse = this.database.getAllDocsRequestBuilder().includeDocs(true).build().getResponse();
-            List<Document> docs = allDocsResponse.getDocs();
-            this.database.bulk(docs.stream()
-                    .map(document -> new CloudantDelete(document.getId(), document.getRevision()))
-                    .collect(Collectors.toList())
-            );
-        } catch (IOException e) {
+            PostAllDocsOptions docsOptions = new PostAllDocsOptions.Builder().db(this.dbName).includeDocs(true).build();
+            AllDocsResult allDocResults = this.client.postAllDocs(docsOptions).execute().getResult();
+
+            for (DocsResultRow docResult : allDocResults.getRows()) {
+                Document document = docResult.getDoc();
+
+                DeleteDocumentOptions deleteDocumentOptions = new DeleteDocumentOptions.Builder().db(this.dbName)
+                        .docId(document.getId()).rev(document.getRev()).build();
+
+                DocumentResult deleteDocumentResponse = client.deleteDocument(deleteDocumentOptions).execute()
+                        .getResult();
+
+                if (!deleteDocumentResponse.isOk()) {
+                    logger.info("Could not delete a document.");
+                }
+            }
+        } catch (NotFoundException e) {
             String errMsg = "Unable to retrieve all documents from Cloudant";
             logger.error(errMsg, e);
             throw new Exception(errMsg, e);
