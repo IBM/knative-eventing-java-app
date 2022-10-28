@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi8/openjdk-17:1.13 AS builder
+FROM registry.access.redhat.com/ubi8/openjdk-17:1.14 AS builder
 LABEL maintainer="IBM Java Engineering at IBM Cloud"
 
 WORKDIR /app
@@ -7,7 +7,7 @@ COPY . /app
 RUN mvn -N wrapper:wrapper -Dmaven=3.8.4
 RUN ./mvnw install
 
-FROM registry.access.redhat.com/ubi8/openjdk-17:1.13
+FROM registry.access.redhat.com/ubi8/openjdk-17:1.14
 LABEL maintainer="IBM Java Engineering at IBM Cloud"
 
 # disable vulnerable TLS algorithms
