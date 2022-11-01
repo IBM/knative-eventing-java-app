@@ -28,7 +28,7 @@ public class DatabaseUtils {
                 cloudantSvcProps = mapper.readValue(ENV_CLOUDANT_STR, Map.class);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage() == null ? "Setting cloudant service properties to empty." : e.getMessage());
             cloudantSvcProps = null;
         }
     }
